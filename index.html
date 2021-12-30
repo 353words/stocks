@@ -2,18 +2,13 @@
 <html>
 	<head>
 		<title>Stocks</title>
-		<script src="/static/plotly-2.8.3.min.js"></script>
+		<script src="/js/plotly-2.8.3.min.js"></script>
+		<script src="/js/chart.js"></script>
 	</head>
 	<body>
 		<h1>Stocks</h1>
-		<div id="chart" style="width:600px;height:250px;"></div>
-
-		<script>
-			var TESTER = document.getElementById('chart');
-			Plotly.newPlot( TESTER, [{
-				x: [1, 2, 3, 4, 5],
-				y: [1, 2, 4, 8, 16] }], {
-				margin: { t: 0 } } );
-		</script>
+		Symbol: <input id="symbol"> <button id="generate">Generate</button>
+		<hr />
+		<div id="chart" style="width:800px;height:800;"></div>
 	</body>
 </html>

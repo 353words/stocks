@@ -3,8 +3,8 @@ package main
 import (
 	_ "embed"
 	"encoding/csv"
+	"encoding/json"
 	"fmt"
-	"html/template"
 	"io"
 	"log"
 	"net/http"
@@ -15,12 +15,12 @@ import (
 )
 
 var (
-	//go:embed "plotly-2.8.3.min.js"
-	plotlyJS string
-
 	//go:embed "index.html"
-	indexHTML     string
-	indexTemplate = template.Must(template.New("index").Parse(indexHTML))
+	indexHTML []byte
+	//go:embed "plotly-2.8.3.min.js"
+	plotlyJS []byte
+	//go:embed "chart.js"
+	chartJS []byte
 )
 
 type Row struct {
@@ -99,32 +99,83 @@ func getStocks(symbol string, start, end time.Time) (Table, error) {
 	return parseData(resp.Body)
 }
 
-func jsHandler(w http.ResponseWriter, r *http.Request) {
-	fmt.Fprint(w, plotlyJS)
+func staticHandler(w http.ResponseWriter, r *http.Request) {
+	var data []byte
+	switch r.URL.Path {
+	case "/":
+		data = indexHTML
+	case "/js/plotly-2.8.3.min.js":
+		data = plotlyJS
+	case "/js/chart.js":
+		data = chartJS
+	}
+
+	if data == nil {
+		log.Printf("%q not found", r.URL.Path)
+		http.Error(w, "not found", http.StatusNotFound)
+		return
+	}
+	w.Write(data)
 }
 
-func indexHandler(w http.ResponseWriter, r *http.Request) {
-	if err := indexTemplate.Execute(w, nil); err != nil {
-		log.Printf("template: %s", err)
+func dataHandler(w http.ResponseWriter, r *http.Request) {
+	symbol := r.URL.Query().Get("symbol")
+	if symbol == "" {
+		http.Error(w, "empty symbol", http.StatusBadRequest)
+		return
+	}
+	log.Printf("data: %q", symbol)
+	start := time.Date(2021, time.January, 1, 0, 0, 0, 0, time.UTC)
+	end := time.Date(2021, time.June, 31, 0, 0, 0, 0, time.UTC)
+	table, err := getStocks(symbol, start, end)
+	if err != nil {
+		log.Printf("get %q: %s", symbol, err)
+		http.Error(w, "can't fetch data", http.StatusInternalServerError)
+		return
+	}
+
+	if err := tableJSON(symbol, table, w); err != nil {
+		log.Printf("table: %s", err)
 	}
 }
 
+func tableJSON(symbol string, table Table, w io.Writer) error {
+	var reply struct {
+		Data [2]struct {
+			X    interface{} `json:"x"`
+			Y    interface{} `json:"y"`
+			Name string      `json:"name"`
+			Mode string      `json:"mode"`
+		} `json:"data"`
+		Layout struct {
+			Title string `json:"title"`
+			Grid  struct {
+				Rows    int `json:"rows"`
+				Columns int `json:"columns"`
+			} `json:"grid"`
+		} `json:"layout"`
+	}
+
+	reply.Layout.Title = symbol
+	reply.Layout.Grid.Rows = 2
+	reply.Layout.Grid.Columns = 1
+	reply.Data[0].X = table.Date
+	reply.Data[0].Y = table.Price
+	reply.Data[0].Name = "Price"
+	reply.Data[0].Mode = "line"
+	reply.Data[1].X = table.Date
+	reply.Data[1].Y = table.Volume
+	reply.Data[1].Name = "Volume"
+	reply.Data[1].Mode = "bar"
+
+	return json.NewEncoder(w).Encode(reply)
+}
+
 func main() {
-	http.HandleFunc("/static/plotly-2.8.3.min.js", jsHandler)
-	http.HandleFunc("/", indexHandler)
+	http.HandleFunc("/", staticHandler)
+	http.HandleFunc("/data", dataHandler)
 
 	if err := http.ListenAndServe(":8080", nil); err != nil {
 		log.Fatal(err)
 	}
-
-	/*
-		symbol := "MSFT"
-		start := time.Date(2021, time.January, 1, 0, 0, 0, 0, time.UTC)
-		end := time.Date(2021, time.June, 31, 0, 0, 0, 0, time.UTC)
-		rows, err := getStocks(symbol, start, end)
-		if err != nil {
-			log.Fatal(err)
-		}
-		fmt.Println(rows)
-	*/
 }
