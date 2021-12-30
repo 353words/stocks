@@ -1,8 +1,10 @@
 package main
 
 import (
+	_ "embed"
 	"encoding/csv"
 	"fmt"
+	"html/template"
 	"io"
 	"log"
 	"net/http"
@@ -10,6 +12,15 @@ import (
 	"time"
 
 	"github.com/jszwec/csvutil"
+)
+
+var (
+	//go:embed "plotly-2.8.3.min.js"
+	plotlyJS string
+
+	//go:embed "index.html"
+	indexHTML     string
+	indexTemplate = template.Must(template.New("index").Parse(indexHTML))
 )
 
 type Row struct {
@@ -28,14 +39,20 @@ func unmarshalTime(data []byte, t *time.Time) error {
 	return err
 }
 
-func parseData(r io.Reader) ([]Row, error) {
+type Table struct {
+	Date   []time.Time
+	Price  []float64
+	Volume []int
+}
+
+func parseData(r io.Reader) (Table, error) {
 	dec, err := csvutil.NewDecoder(csv.NewReader(r))
 	if err != nil {
-		return nil, err
+		return Table{}, err
 	}
 	dec.Register(unmarshalTime)
 
-	var rows []Row
+	var table Table
 	for {
 		var row Row
 		err := dec.Decode(&row)
@@ -45,13 +62,15 @@ func parseData(r io.Reader) ([]Row, error) {
 		}
 
 		if err != nil {
-			return nil, err
+			return Table{}, err
 		}
 
-		rows = append(rows, row)
+		table.Date = append(table.Date, row.Date)
+		table.Price = append(table.Price, row.Close)
+		table.Volume = append(table.Volume, row.Volume)
 	}
 
-	return rows, nil
+	return table, nil
 }
 
 func buildURL(symbol string, start, end time.Time) string {
@@ -66,27 +85,46 @@ func buildURL(symbol string, start, end time.Time) string {
 	return fmt.Sprintf("%s?%s", u, v.Encode())
 }
 
-func getStocks(symbol string, start, end time.Time) ([]Row, error) {
+func getStocks(symbol string, start, end time.Time) (Table, error) {
 	u := buildURL(symbol, start, end)
 	resp, err := http.Get(u)
 	if err != nil {
-		return nil, err
+		return Table{}, err
 	}
 	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("%s", resp.Status)
+		return Table{}, fmt.Errorf("%s", resp.Status)
 	}
 	defer resp.Body.Close()
 
 	return parseData(resp.Body)
 }
 
+func jsHandler(w http.ResponseWriter, r *http.Request) {
+	fmt.Fprint(w, plotlyJS)
+}
+
+func indexHandler(w http.ResponseWriter, r *http.Request) {
+	if err := indexTemplate.Execute(w, nil); err != nil {
+		log.Printf("template: %s", err)
+	}
+}
+
 func main() {
-	symbol := "MSFT"
-	start := time.Date(2021, time.January, 1, 0, 0, 0, 0, time.UTC)
-	end := time.Date(2021, time.June, 31, 0, 0, 0, 0, time.UTC)
-	rows, err := getStocks(symbol, start, end)
-	if err != nil {
+	http.HandleFunc("/static/plotly-2.8.3.min.js", jsHandler)
+	http.HandleFunc("/", indexHandler)
+
+	if err := http.ListenAndServe(":8080", nil); err != nil {
 		log.Fatal(err)
 	}
-	fmt.Println(rows)
+
+	/*
+		symbol := "MSFT"
+		start := time.Date(2021, time.January, 1, 0, 0, 0, 0, time.UTC)
+		end := time.Date(2021, time.June, 31, 0, 0, 0, 0, time.UTC)
+		rows, err := getStocks(symbol, start, end)
+		if err != nil {
+			log.Fatal(err)
+		}
+		fmt.Println(rows)
+	*/
 }
