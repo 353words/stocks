@@ -126,7 +126,7 @@ func dataHandler(w http.ResponseWriter, r *http.Request) {
 	}
 	log.Printf("data: %q", symbol)
 	start := time.Date(2021, time.January, 1, 0, 0, 0, 0, time.UTC)
-	end := time.Date(2021, time.June, 31, 0, 0, 0, 0, time.UTC)
+	end := time.Date(2021, time.December, 31, 0, 0, 0, 0, time.UTC)
 	table, err := getStocks(symbol, start, end)
 	if err != nil {
 		log.Printf("get %q: %s", symbol, err)
@@ -142,10 +142,11 @@ func dataHandler(w http.ResponseWriter, r *http.Request) {
 func tableJSON(symbol string, table Table, w io.Writer) error {
 	var reply struct {
 		Data [2]struct {
-			X    interface{} `json:"x"`
-			Y    interface{} `json:"y"`
-			Name string      `json:"name"`
-			Mode string      `json:"mode"`
+			X     interface{} `json:"x"`
+			Y     interface{} `json:"y"`
+			YAxis string      `json:"yaxis,omitempty"`
+			Name  string      `json:"name"`
+			Type  string      `json:"type"`
 		} `json:"data"`
 		Layout struct {
 			Title string `json:"title"`
@@ -162,11 +163,12 @@ func tableJSON(symbol string, table Table, w io.Writer) error {
 	reply.Data[0].X = table.Date
 	reply.Data[0].Y = table.Price
 	reply.Data[0].Name = "Price"
-	reply.Data[0].Mode = "line"
+	reply.Data[0].Type = "scatter"
 	reply.Data[1].X = table.Date
 	reply.Data[1].Y = table.Volume
 	reply.Data[1].Name = "Volume"
-	reply.Data[1].Mode = "bar"
+	reply.Data[1].Type = "bar"
+	reply.Data[1].YAxis = "y2"
 
 	return json.NewEncoder(w).Encode(reply)
 }

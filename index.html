@@ -4,11 +4,20 @@
 		<title>Stocks</title>
 		<script src="/js/plotly-2.8.3.min.js"></script>
 		<script src="/js/chart.js"></script>
+		<style>
+				#symbol {
+					width: 6em;
+				}
+				#chart {
+					width: 800px;
+					height: 400px;
+				}
+		</style>
 	</head>
 	<body>
-		<h1>Stocks</h1>
+		<h3>Stocks</h3>
 		Symbol: <input id="symbol"> <button id="generate">Generate</button>
 		<hr />
-		<div id="chart" style="width:800px;height:800;"></div>
+		<div id="chart"></div>
 	</body>
 </html>
