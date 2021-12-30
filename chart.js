@@ -1,8 +1,8 @@
 async function updateChart() {
     let symbol = document.getElementById('symbol').value;
     let resp = await fetch('/data?symbol=' + symbol);
-    let data = await resp.json(); 
-    Plotly.newPlot('chart', data.data, data.layout);
+    let reply = await resp.json(); 
+    Plotly.newPlot('chart', reply.data, reply.layout);
 }
 
 document.addEventListener('DOMContentLoaded', function () {
