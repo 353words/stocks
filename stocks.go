@@ -23,11 +23,9 @@ var (
 	chartJS []byte
 )
 
+// Row in CSV
 type Row struct {
 	Date   time.Time
-	Open   float64
-	High   float64
-	Low    float64
 	Close  float64
 	Volume int
 }
@@ -39,12 +37,14 @@ func unmarshalTime(data []byte, t *time.Time) error {
 	return err
 }
 
+// Table of data
 type Table struct {
 	Date   []time.Time
 	Price  []float64
 	Volume []int
 }
 
+// parseData parses data from r and returns a table with columns filled
 func parseData(r io.Reader) (Table, error) {
 	dec, err := csvutil.NewDecoder(csv.NewReader(r))
 	if err != nil {
@@ -73,6 +73,7 @@ func parseData(r io.Reader) (Table, error) {
 	return table, nil
 }
 
+// buildURL builds URL for downloading CSV from Yahoo! finance
 func buildURL(symbol string, start, end time.Time) string {
 	u := fmt.Sprintf("https://query1.finance.yahoo.com/v7/finance/download/%s", url.PathEscape(symbol))
 	v := url.Values{
@@ -85,6 +86,7 @@ func buildURL(symbol string, start, end time.Time) string {
 	return fmt.Sprintf("%s?%s", u, v.Encode())
 }
 
+// getStocks returns stock data from Yahoo! finance
 func getStocks(symbol string, start, end time.Time) (Table, error) {
 	u := buildURL(symbol, start, end)
 	resp, err := http.Get(u)
@@ -99,6 +101,7 @@ func getStocks(symbol string, start, end time.Time) (Table, error) {
 	return parseData(resp.Body)
 }
 
+// staticHandler handles static assets
 func staticHandler(w http.ResponseWriter, r *http.Request) {
 	var data []byte
 	switch r.URL.Path {
@@ -118,6 +121,7 @@ func staticHandler(w http.ResponseWriter, r *http.Request) {
 	w.Write(data)
 }
 
+// dataHandler returns JSON data for symbol
 func dataHandler(w http.ResponseWriter, r *http.Request) {
 	symbol := r.URL.Query().Get("symbol")
 	if symbol == "" {
@@ -139,6 +143,7 @@ func dataHandler(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+// tableJSON writes table data as JSON into w
 func tableJSON(symbol string, table Table, w io.Writer) error {
 	var reply struct {
 		Data [2]struct {
