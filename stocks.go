@@ -27,18 +27,18 @@ type Row struct {
 	Volume int
 }
 
-// unmarshalTime unmarshal data in CSV to time
-func unmarshalTime(data []byte, t *time.Time) error {
-	var err error
-	*t, err = time.Parse("2006-01-02", string(data))
-	return err
-}
-
 // Table of data
 type Table struct {
 	Date   []time.Time
 	Price  []float64
 	Volume []int
+}
+
+// unmarshalTime unmarshal data in CSV to time
+func unmarshalTime(data []byte, t *time.Time) error {
+	var err error
+	*t, err = time.Parse("2006-01-02", string(data))
+	return err
 }
 
 // parseData parses data from r and returns a table with columns filled

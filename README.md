@@ -30,17 +30,30 @@ Date,Open,High,Low,Close,Adj Close,Volume
 Listing one shows an example CSV download from Yahoo! finance. You're going to use only the `Date`, `Close` and `Volume` columns.
 
 
-Let's start!
+Let's start! First we'll parse the data
+
+**Listing 2: Parsing Time**
+
+```
+37 // unmarshalTime unmarshal data in CSV to time
+38 func unmarshalTime(data []byte, t *time.Time) error {
+39     var err error
+40     *t, err = time.Parse("2006-01-02", string(data))
+41     return err
+42 }
+```
+
+Listing 2 shows parsing of time. In CSV everything is text, and we need to help `csvutil` to know how to parse time. On line 40 we use `time.Parse` to parse time from a string in the format `2021-01-11`.
+
 
 **Listing 2: index.html**
-
 ```
 01 <!DOCTYPE html>
 02 <html>
 03     <head>
 04         <title>Stocks</title>
-05         <script src="/js/plotly-2.8.3.min.js"></script>
-06         <script src="/js/chart.js"></script>
+05         <script src="/plotly-2.8.3.min.js"></script>
+06         <script src="/chart.js"></script>
 07         <style>
 08                 #symbol {
 09                     width: 6em;
@@ -58,6 +71,7 @@ Let's start!
 21         <div id="chart"></div>
 22     </body>
 23 </html>
+
 ```
 
 Listing 2 shows the `index.html`. On line 05 we load the plotly JavaScript library and  on line 06 we load our JavaScript code. On line 19 we define the input control for the symbol (stock) an on line 21 we have the `div` that plotly will draw the chart on.
@@ -80,6 +94,7 @@ Listing 2 shows the `index.html`. On line 05 we load the plotly JavaScript libra
 Listing 3 shows the JavaScript code. On line 01 we define a function to update the chart. On line 02 we get the symbol name from the HTML input. On line 03 we call our server to get the data and on line 04 we parse the JSON. Finally on line 05 we use plotly to generate a new chart.
 
 On lines 08-10 we hook the "Generate" button click to call `updateChart`.
+
 
 
 
