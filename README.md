@@ -295,3 +295,17 @@ Listing 12 shows how we embed the non-Go files in our server using the `embed` p
 ```
 
 Listing 13 shows the `main` function. On line 159 we use an `http.FileServer` to server the embedded files and on line 160 we rouse `/data` to the `dataHandler`. Finally on line 162 we run the server on port 8080.
+
+The final result look like the below image:
+
+![](msft-chart.jpg)
+
+## Conclusion
+
+With about 170 lines of code we manage to create an interactive application that displays stock information. `plotly` is a very mature library with a lot of features, invest some time going over [the documentation](https://plotly.com/javascript/). I usually start with a chart the looks similar to what I want to display and adjust to my needs.
+
+If your code is in a database, you might need [zero code](https://github.com/kelseyhightower/nocode) to display it. Product such as [grafana](https://grafana.com/), [Google Data Studio](https://datastudio.google.com) and others allow you to create cool dashboards with very little effort.
+
+What are cool visualizations you did create with Go? [Let me know](mailto:miki@353solutions.com)
+
+What cool visualization do you do with Go?
