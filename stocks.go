@@ -1,6 +1,7 @@
 package main
 
 import (
+	"embed"
 	_ "embed"
 	"encoding/csv"
 	"encoding/json"
@@ -15,12 +16,8 @@ import (
 )
 
 var (
-	//go:embed "index.html"
-	indexHTML []byte
-	//go:embed "plotly-2.8.3.min.js"
-	plotlyJS []byte
-	//go:embed "chart.js"
-	chartJS []byte
+	//go:embed chart.js index.html plotly-2.8.3.min.js
+	staticFS embed.FS
 )
 
 // Row in CSV
@@ -101,26 +98,6 @@ func getStocks(symbol string, start, end time.Time) (Table, error) {
 	return parseData(resp.Body)
 }
 
-// staticHandler handles static assets
-func staticHandler(w http.ResponseWriter, r *http.Request) {
-	var data []byte
-	switch r.URL.Path {
-	case "/":
-		data = indexHTML
-	case "/js/plotly-2.8.3.min.js":
-		data = plotlyJS
-	case "/js/chart.js":
-		data = chartJS
-	}
-
-	if data == nil {
-		log.Printf("%q not found", r.URL.Path)
-		http.Error(w, "not found", http.StatusNotFound)
-		return
-	}
-	w.Write(data)
-}
-
 // dataHandler returns JSON data for symbol
 func dataHandler(w http.ResponseWriter, r *http.Request) {
 	symbol := r.URL.Query().Get("symbol")
@@ -179,7 +156,7 @@ func tableJSON(symbol string, table Table, w io.Writer) error {
 }
 
 func main() {
-	http.HandleFunc("/", staticHandler)
+	http.Handle("/", http.FileServer(http.FS(staticFS)))
 	http.HandleFunc("/data", dataHandler)
 
 	if err := http.ListenAndServe(":8080", nil); err != nil {
