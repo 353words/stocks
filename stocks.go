@@ -83,8 +83,8 @@ func buildURL(symbol string, start, end time.Time) string {
 	return fmt.Sprintf("%s?%s", u, v.Encode())
 }
 
-// getStocks returns stock data from Yahoo! finance
-func getStocks(symbol string, start, end time.Time) (Table, error) {
+// stockData returns stock data from Yahoo! finance
+func stockData(symbol string, start, end time.Time) (Table, error) {
 	u := buildURL(symbol, start, end)
 	resp, err := http.Get(u)
 	if err != nil {
@@ -108,7 +108,7 @@ func dataHandler(w http.ResponseWriter, r *http.Request) {
 	log.Printf("data: %q", symbol)
 	start := time.Date(2021, time.January, 1, 0, 0, 0, 0, time.UTC)
 	end := time.Date(2021, time.December, 31, 0, 0, 0, 0, time.UTC)
-	table, err := getStocks(symbol, start, end)
+	table, err := stockData(symbol, start, end)
 	if err != nil {
 		log.Printf("get %q: %s", symbol, err)
 		http.Error(w, "can't fetch data", http.StatusInternalServerError)

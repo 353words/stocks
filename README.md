@@ -45,8 +45,113 @@ Let's start! First we'll parse the data
 
 Listing 2 shows parsing of time. In CSV everything is text, and we need to help `csvutil` to know how to parse time. On line 40 we use `time.Parse` to parse time from a string in the format `2021-01-11`.
 
+**Listing 3: Date Types**
 
-**Listing 2: index.html**
+```
+23 // Row in CSV
+24 type Row struct {
+25     Date   time.Time
+26     Close  float64
+27     Volume int
+28 }
+29 
+30 // Table of data
+31 type Table struct {
+32     Date   []time.Time
+33     Price  []float64
+34     Volume []int
+35 }
+```
+
+Listing 3 shows the data types used in parsing. On line 24 we define `Row` which corresponds to a row in the CSV, we define only 3 fields for the columns we're interested in. `Close` is used to represent the stock price in that day. On line 31 we define the output type - `Table`. We have three columns of data: `Data`, `Price` (from the `Close` column in the CSV) and `Volume`.
+
+**Listing 4: Parsing Data**
+
+```
+44 // parseData parses data from r and returns a table with columns filled
+45 func parseData(r io.Reader) (Table, error) {
+46     dec, err := csvutil.NewDecoder(csv.NewReader(r))
+47     if err != nil {
+48         return Table{}, err
+49     }
+50     dec.Register(unmarshalTime)
+51 
+52     var table Table
+53     for {
+54         var row Row
+55         err := dec.Decode(&row)
+56 
+57         if err == io.EOF {
+58             break
+59         }
+60 
+61         if err != nil {
+62             return Table{}, err
+63         }
+64 
+65         table.Date = append(table.Date, row.Date)
+66         table.Price = append(table.Price, row.Close)
+67         table.Volume = append(table.Volume, row.Volume)
+68     }
+69 
+70     return table, nil
+71 }
+```
+
+Listing 4 shows how to parse the data. On line 46 we create a new `csvutil.Decoder` and on line 50 we register `unmarshal` to handle `time.Time` fields. On line 52 we define the output value `table`. On line 53 we start iterating over the input, on line 54 we define `row` and on line 55 we decode the current line in the CSV into it. On line 57 we check for end of input and on line 61 we check for other errors. On lines 65-67 we append the values from the current row to the respective columns. Finally on line 70 we return the parsed input.
+
+_Note: To test this code, I've downloaded a CSV file one and used `parseData` on the opened file. This make the development cycle faster and also reduces the chances you'll be banned from hitting the API too frequently._
+
+Once we have parse the data, we can get it from Yahoo! finance.
+
+**Listing 5: Building the URL**
+
+```
+73 // buildURL builds URL for downloading CSV from Yahoo! finance
+74 func buildURL(symbol string, start, end time.Time) string {
+75     u := fmt.Sprintf("https://query1.finance.yahoo.com/v7/finance/download/%s", url.PathEscape(symbol))
+76     v := url.Values{
+77         "period1":  {fmt.Sprintf("%d", start.Unix())},
+78         "period2":  {fmt.Sprintf("%d", end.Unix())},
+79         "interval": {"1d"},
+80         "events":   {"history"},
+81     }
+82 
+83     return fmt.Sprintf("%s?%s", u, v.Encode())
+84 }
+```
+
+Listing 5 shows how to build the URL to fetch the CSV. The final URL looks like:
+
+```
+https://query1.finance.yahoo.com/v7/finance/download/MSFT?period1=1609286400&period2=1640822400&interval=1d&events=history
+```
+On line 75 we use `fmt.Sprintf` and `url.PathEscape` to create the first part of the URL (up to `?`). On lines 76 to 80 we create the query part of the URL using a `url.Values`. Finally on line 83 we return the full URL. 
+
+**Listing 6: Getting the Data**
+
+```
+86 // stockData returns stock data from Yahoo! finance
+87 func stockData(symbol string, start, end time.Time) (Table, error) {
+88     u := buildURL(symbol, start, end)
+89     resp, err := http.Get(u)
+90     if err != nil {
+91         return Table{}, err
+92     }
+93     if resp.StatusCode != http.StatusOK {
+94         return Table{}, fmt.Errorf("%s", resp.Status)
+95     }
+96     defer resp.Body.Close()
+97 
+98     return parseData(resp.Body)
+99 }
+```
+
+Listing 6 shows how we get the data. On line 88 we build the URL and on line 89 we make an HTTP `GET` request. On lines 90 and 93 we check for error and finally on line 98 we return the result of `parseData` on the response body.
+
+Now that we get and parse our data, we can build our web server.
+
+**Listing 7: index.html**
 ```
 01 <!DOCTYPE html>
 02 <html>
@@ -74,9 +179,9 @@ Listing 2 shows parsing of time. In CSV everything is text, and we need to help 
 
 ```
 
-Listing 2 shows the `index.html`. On line 05 we load the plotly JavaScript library and  on line 06 we load our JavaScript code. On line 19 we define the input control for the symbol (stock) an on line 21 we have the `div` that plotly will draw the chart on.
+Listing 7 shows the `index.html`. On line 05 we load the plotly JavaScript library and  on line 06 we load our JavaScript code. On line 19 we define the input control for the symbol (stock) an on line 21 we have the `div` that plotly will draw the chart on.
 
-**Listing 3: chart.js**
+**Listing 8: chart.js**
 
 ```
 01 async function updateChart() {
@@ -91,249 +196,102 @@ Listing 2 shows the `index.html`. On line 05 we load the plotly JavaScript libra
 10 });
 ```
 
-Listing 3 shows the JavaScript code. On line 01 we define a function to update the chart. On line 02 we get the symbol name from the HTML input. On line 03 we call our server to get the data and on line 04 we parse the JSON. Finally on line 05 we use plotly to generate a new chart.
+Listing 9 shows the JavaScript code. On line 01 we define a function to update the chart. On line 02 we get the symbol name from the HTML input. On line 03 we call our server to get the data and on line 04 we parse the JSON. Finally on line 05 we use plotly to generate a new chart.
 
 On lines 08-10 we hook the "Generate" button click to call `updateChart`.
 
-
-
-
-
+**Listing 10: Data Handler**
 
 ```
-29 // unmarshalTime unmarshal data in CSV to time
-30 func unmarshalTime(data []byte, t *time.Time) error {
-31     var err error
-32     *t, err = time.Parse("2006-01-02 15:04:05.000", string(data))
-33     return err
-34 }
-```
-
-Listing 3 shows `unmarshalTime` which is used by `csvutil` to parse time in the CSV file. On line 32 we use [time.Parse](https://pkg.go.dev/time#Parse) to parse the time. I always forget how to format the time and find the [constants](https://pkg.go.dev/time#pkg-constants) section in the `time` package documentation helpful.
-
-**Listing 4: Loading CSV**
-
-```
-36 // loadData loads data from CSV file, parses time in loc
-37 func loadData(r io.Reader, loc *time.Location) ([]Row, error) {
-38     var rows []Row
-39     dec, err := csvutil.NewDecoder(csv.NewReader(r))
-40     dec.Register(unmarshalTime)
-41     if err != nil {
-42         return nil, err
-43     }
-44 
-45     for {
-46         var row Row
-47         err := dec.Decode(&row)
-48 
-49         if err == io.EOF {
-50             break
-51         }
-52 
-53         if err != nil {
-54             return nil, err
-55         }
-56 
-57         row.Time = row.Time.In(loc)
-58         rows = append(rows, row)
-59     }
-60 
-61     return rows, nil
-62 }
-```
-
-Listing 4 shows the `loadData` function that loads data from the CSV. `loadData` gets the CSV as `io.Reader`, which makes it more versatile and also easier to test. It also gets the time zone as a parameter since the data in the CSV is in UTC. On line 39 we create a new decoder and on line 40 we register `unmarshalTime` to handle `time.Time` fields. On lines 45 to 59 we iterate over the lines of the file loading them. On line 57 we convert the time from UTC to the right time zone.
-
-**Listing 5: Mean of Rows**
-
-```
-65 func meanRow(t time.Time, rows []Row) Row {
-66     lat, lng, height := 0.0, 0.0, 0.0
-67     for _, row := range rows {
-68         lat += row.Lat
-69         lng += row.Lng
-70         height += row.Height
-71     }
-72 
-73     count := float64(len(rows))
-74     return Row{
-75         Time:   t,
-76         Lat:    lat / count,
-77         Lng:    lng / count,
-78         Height: height / count,
-79     }
-80 }
-```
-
-Listing 5 shows `meanRow` that takes a slice of `Row` and returns a mean row `Row`. On line 66 we initialize the means to 0, and on lines 67 to 70 we sum the fields. On lines 74 to 79 we return the mean rows with the time and mean value for each field.
-
-Before we take a look at the `resample` function, let's understand what it does. Resampling is like a [GROUP BY](https://en.wikipedia.org/wiki/Group_by_(SQL)) statement - we split the data in groups (called `buckets` in the code below) according to some criteria. In our case, we split the data to groups that fall within a specific time range. Once we grouped the data, for each group we return the group (the time) and a representing row. In the code below we calculate the [mean](https://en.wikipedia.org/wiki/Mean) (sometimes called "average") of each Row field.
-
-Here's an example, say we have the following made up data:
-
-```
-2015-08-20 03:48:07,32.0,42.0,10.0
-2015-08-20 03:48:28,33.0,43.0,11.0
-2015-08-20 03:48:52,34.0,44.0,12.0
-2015-08-20 03:49:09,35.0,45.0,13.0
-2015-08-20 03:49:37,36.0,46.0,14.0
-```
-
-When we resample to minute frequency, we first group the rows:
-
-```
-time: 2015-08-20 03:48
-2015-08-20 03:48:07,32.0,42.0,10.0
-2015-08-20 03:48:28,33.0,43.0,11.0
-2015-08-20 03:48:52,34.0,44.0,12.0
-
-time: 2015-08-20 03:49
-2015-08-20 03:49:09,35.0,45.0,13.0
-2015-08-20 03:49:37,36.0,46.0,14.0
-```
-
-Finally, for each group, we return the group (time) average of each field:
-
-```
-2015-08-20 03:48,33.0,43.0,11.0
-2015-08-20 03:49,35.5,45.5,13.5
-```
-
-Back to the code ...
-
-**Listing 6: Resampling**
-
-```
-82 // resample resamples rows to freq, using mean to calculate values
-83 func resample(rows []Row, freq time.Duration) []Row {
-84     buckets := make(map[time.Time][]Row)
-85     for _, row := range rows {
-86         t := row.Time.Truncate(freq)
-87         buckets[t] = append(buckets[t], row)
-88     }
-89 
-90     out := make([]Row, 0, len(buckets))
-91     for t, rows := range buckets {
-92         out = append(out, meanRow(t, rows))
-93     }
-94 
-95     sort.Slice(out, func(i, j int) bool { return rows[i].Time.Before(rows[j].Time) })
-96     return out
-97 }
-```
-
-Listing 6 shows how we resample the rows by time. On line 84 we create a `buckets` which will hold all the rows that fall in the same time span and on lines 85 to 88 we fill these buckets. On line 90 we create the output slice and one lines 91 to 93 we fill the output slice with the mean rows for each bucket. Finally on line 95 we sort the output by time and return it on line 96.
-
-**Listing 7: HTML template variables**
-
-```
-16 var (
-17     //go:embed "template.html"
-18     mapHTML     string
-19     mapTemplate = template.Must(template.New("track").Parse(mapHTML))
-20 )
-```
-
-Listing 7 shows the HTML template variables. On line 18 we define `mapHTML` string, with an [embed](https://pkg.go.dev/embed) directive above it. On line 19 we define the `mapTemplate` using the `Must` function, the `Must` is used in `var` or `init` and will panic if there's an error in the template.
-
-**Listing 8: The HTML Template**
-
-```
-01 <!DOCTYPE html>
-02 <html>
-03     <head>
-04         <title>Miki's Run</title>
-05 
-06     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.7.1/dist/leaflet.css" integrity="sha512-xodZBNTC5n17Xt2atTPuE1HxjVMSvLVW9ocqUKLsCC5CXdbqCmblAshOMAS6/keqq/sMZMZ19scR4PsZChSR7A==" crossorigin=""/>
-07     <script src="https://unpkg.com/leaflet@1.7.1/dist/leaflet.js" integrity="sha512-XQoYMqMTK8LvdxXYG3nZ448hOEQiglfqkJs1NOQV44cWnUrBc8PkAOcXy20w0vlaXaVUearIOBhiXZ5V3ynxwA==" crossorigin=""></script>
-08     <style>
-09         #track {
-10           width: 100%;
-11           height: 800px;
-12         }
-13     </style>
-14   </head>
-15     <body>
-16     <div id="track"></div>
-17     <script>
-18       var m = L.map('track').setView([{{.start.Lat}}, {{.start.Lng}}], 15);
-19       L.tileLayer('https://api.mapbox.com/styles/v1/{id}/tiles/{z}/{x}/{y}?access_token={{.access_token}}', {
-20         maxZoom: 18,
-21         id: 'mapbox/streets-v11',
-22         tileSize: 512,
-23         zoomOffset: -1
-24     }).addTo(m);
-25 
-26       {{range .rows}}
-27         L.circle([{{.Lat}}, {{.Lng}}], {
-28             color: 'red',
-29             radius: 20,
-30         }).bindPopup('{{.Time.Format "15:04"}}').addTo(m);
-31       {{end}}
-32     </script>
-33     </body>
-34 </html>
-```
-
-Listing 8 shows `template.html`. On lines 6 & 7 we load leaflet CSS & javascript code. On lines 8-13 we set the dimensions for our map. On line 16 we define the HTML `div` that will hold the map. On line 18 we create the map with initial coordinates and zoom level. On lines 19 to 24 we load the [tiles](https://en.wikipedia.org/wiki/Tiled_web_map) that will be displayed. On lines 26 we iterate over the rows and on lines 27-30 we add a red circle marker with the time as a popup. On line 30 we use the [time.Time.Format](https://pkg.go.dev/time#Time.Format) method inside the template to show only hour and minute.
-
-
-**Listing 9: main function**
-
-```
-99 func main() {
-100     file, err := os.Open("track.csv")
-101     if err != nil {
-102         log.Fatal(err)
-103     }
-104     defer file.Close()
-105 
-106     loc, err := time.LoadLocation("Asia/Jerusalem")
-107     if err != nil {
-108         log.Fatal(err)
-109     }
-110 
-111     rows, err := loadData(file, loc)
+101 // dataHandler returns JSON data for symbol
+102 func dataHandler(w http.ResponseWriter, r *http.Request) {
+103     symbol := r.URL.Query().Get("symbol")
+104     if symbol == "" {
+105         http.Error(w, "empty symbol", http.StatusBadRequest)
+106         return
+107     }
+108     log.Printf("data: %q", symbol)
+109     start := time.Date(2021, time.January, 1, 0, 0, 0, 0, time.UTC)
+110     end := time.Date(2021, time.December, 31, 0, 0, 0, 0, time.UTC)
+111     table, err := stockData(symbol, start, end)
 112     if err != nil {
-113         log.Fatal(err)
-114     }
-115 
-116     rows = resample(rows, time.Minute)
+113         log.Printf("get %q: %s", symbol, err)
+114         http.Error(w, "can't fetch data", http.StatusInternalServerError)
+115         return
+116     }
 117 
-118     // Find token in https://account.mapbox.com/access-tokens/
-119     accessToken := os.Getenv("MAPBOX_TOKEN")
-120     if accessToken == "" {
-121         log.Fatal("error: no access token, did you set MAPBOX_TOKEN?")
-122     }
-123 
-124     // Template data
-125     data := map[string]interface{}{
-126         "start":        rows[len(rows)/2],
-127         "rows":         rows,
-128         "access_token": accessToken,
-129     }
-130     if err := mapTemplate.Execute(os.Stdout, data); err != nil {
-131         log.Fatal(err)
-132     }
-133 }
+118     if err := tableJSON(symbol, table, w); err != nil {
+119         log.Printf("table: %s", err)
+120     }
+121 }
 ```
 
-Listing 9 shows the main function. On line 100 we open the CSV file and on line 106 we load Israel's time zone. On line 111 we load the data and on line 116 we resample it to a minute frequency. Next we generate the map HTML. On line 119 we get the mapbox access token from the environment and on lines 125 to 129 we create the data passed to the HTML template. Finally on line 130 we execute the template on the data to standard output.
+Listing 10 shows the data handler. On line 103 we extract the symbol from the HTTP `symbol` parameter. On line 111 we call `stockData` to get the stock data and finally on line 118 we convert the `Table` output to JSON.
 
-**Listing 10: Running the Code**
+**Listing 11: Table as JSON**
 
 ```
-$ go run . > track.html
+123 // tableJSON writes table data as JSON into w
+124 func tableJSON(symbol string, table Table, w io.Writer) error {
+125     var reply struct {
+126         Data [2]struct {
+127             X     interface{} `json:"x"`
+128             Y     interface{} `json:"y"`
+129             YAxis string      `json:"yaxis,omitempty"`
+130             Name  string      `json:"name"`
+131             Type  string      `json:"type"`
+132         } `json:"data"`
+133         Layout struct {
+134             Title string `json:"title"`
+135             Grid  struct {
+136                 Rows    int `json:"rows"`
+137                 Columns int `json:"columns"`
+138             } `json:"grid"`
+139         } `json:"layout"`
+140     }
+141 
+142     reply.Layout.Title = symbol
+143     reply.Layout.Grid.Rows = 2
+144     reply.Layout.Grid.Columns = 1
+145     reply.Data[0].X = table.Date
+146     reply.Data[0].Y = table.Price
+147     reply.Data[0].Name = "Price"
+148     reply.Data[0].Type = "scatter"
+149     reply.Data[1].X = table.Date
+150     reply.Data[1].Y = table.Volume
+151     reply.Data[1].Name = "Volume"
+152     reply.Data[1].Type = "bar"
+153     reply.Data[1].YAxis = "y2"
+154 
+155     return json.NewEncoder(w).Encode(reply)
+156 }
 ```
 
-Listing 10 shows how to run the code. When you'll open the generated `track.html` you'll see a map similar to this.
-
-![](track-map.jpg)
+Listing 11 shows how we covert a `Table` to JSON used by our JavaScript code. On lines 125-139 we define an anonymous struct that will be marshalled to JSON. On lines 142 to 153 we fill this struct, telling plotly how we want the data to be displayed. Line 145 and 146 fill the `x` and `y` for the price, line 147 sets the title and on line 148 we specify we want a scatter (line) chart. On line 149 and 150 we set the `x` and `y` for the volume. On line 151 we wet the title and on line 152 we specify we want a bar chart. On line 153 we tell poltly we want a separate y axis for the volume. Finally on line 155 we use a `json.ENcoder` to encode this struct.
 
 
-### Conclusion
+**Listing 12: Embedding Files**
 
-In about 150 lines of Go and HTML template, we loaded data from CSV, parsed it, resampled, and generated an interactive map. You don't have to use fancy geographic tools (called [GIS](https://en.wikipedia.org/wiki/Geographic_information_system)) to show data on maps, using Go to "glue" CSV and leaflet (which uses [OpenStreetMap](https://www.openstreetmap.org/) under the hood) is fun. I encourage you to leaflet more, it's a wonderful library that has [a lot of capabilities](https://leafletjs.com/examples.html).
+```
+18 var (
+19     //go:embed chart.js index.html plotly-2.8.3.min.js
+20     staticFS embed.FS
+21 )
+```
 
-You can view the source code to this blog post [on github](https://github.com/353words/track).
+Listing 12 shows how we embed the non-Go files in our server using the `embed` package. On line 19 we use a `go:embed` directive to embed several files and on line 20 we define `staticFS` that implements `fs.FS` interface.
+
+**Listing 13: Running The Server**
+
+```
+158 func main() {
+159     http.Handle("/", http.FileServer(http.FS(staticFS)))
+160     http.HandleFunc("/data", dataHandler)
+161 
+162     if err := http.ListenAndServe(":8080", nil); err != nil {
+163         log.Fatal(err)
+164     }
+165 }
+```
+
+Listing 13 shows the `main` function. On line 159 we use an `http.FileServer` to server the embedded files and on line 160 we rouse `/data` to the `dataHandler`. Finally on line 162 we run the server on port 8080.
