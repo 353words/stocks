@@ -9,9 +9,9 @@ url = "FIXME"
 author = "mikit"
 +++
 
-You'd like to visualize some stock data. Looking at the Go ecosystem, you see very little in charting, [gonum](https://github.com/gonum/plot) has some plotting capabilities, but it generates static charts. It's 2022 and you'd like interactive features such as zooming, panning and more. Looking at the HTML landscape, you see much more options and decide to take this path. After a short survey, you decide to use [plotly](https://plotly.com/javascript/).
+You'd like to visualize some stock data. Looking at the Go ecosystem, you see very little in charting, [gonum](https://github.com/gonum/plot) has some plotting capabilities, but it generates static charts. It's 2022 and you'd like interactive features such as zooming, panning and more. Looking at the HTML landscape, you see many more options and decide to take this path. After a short survey, you decide to use [plotly](https://plotly.com/javascript/).
 
-To get stock information, you'll use [Yahoo! finance](https://plotly.com/javascript/) that let you download CSV with historical information.
+To get stock information, you'll use [Yahoo! finance](https://plotly.com/javascript/) that lets you download CSV with historical information.
 
 
 
@@ -98,11 +98,11 @@ Listing 3 shows the data types used in parsing. On line 24 we define `Row` which
 71 }
 ```
 
-Listing 4 shows how to parse the data. On line 46 we create a new `csvutil.Decoder` and on line 50 we register `unmarshal` to handle `time.Time` fields. On line 52 we define the output value `table`. On line 53 we start iterating over the input, on line 54 we define `row` and on line 55 we decode the current line in the CSV into it. On line 57 we check for end of input and on line 61 we check for other errors. On lines 65-67 we append the values from the current row to the respective columns. Finally on line 70 we return the parsed input.
+Listing 4 shows how to parse the data. On line 46 we create a new `csvutil.Decoder` and on line 50 we register `unmarshal` to handle `time.Time` fields. On line 52 we define the output value `table`. On line 53 we start iterating over the input, on line 54 we define `row` and on line 55 we decode the current line in the CSV into it. On line 57 we check for the end of input and on line 61 we check for other errors. On lines 65-67 we append the values from the current row to the respective columns. Finally on line 70 we return the parsed input.
 
 _Note: To test this code, I've downloaded a CSV file one and used `parseData` on the opened file. This make the development cycle faster and also reduces the chances you'll be banned from hitting the API too frequently._
 
-Once we have parse the data, we can get it from Yahoo! finance.
+Once we have parsed the data, we can get it from Yahoo! finance.
 
 **Listing 5: Building the URL**
 
@@ -147,11 +147,12 @@ On line 75 we use `fmt.Sprintf` and `url.PathEscape` to create the first part of
 99 }
 ```
 
-Listing 6 shows how we get the data. On line 88 we build the URL and on line 89 we make an HTTP `GET` request. On lines 90 and 93 we check for error and finally on line 98 we return the result of `parseData` on the response body.
+Listing 6 shows how we get the data. On line 88 we build the URL and on line 89 we make an HTTP `GET` request. On lines 90 and 93 we check for errors and finally on line 98 we return the result of `parseData` on the response body.
 
 Now that we get and parse our data, we can build our web server.
 
 **Listing 7: index.html**
+
 ```
 01 <!DOCTYPE html>
 02 <html>
@@ -176,7 +177,6 @@ Now that we get and parse our data, we can build our web server.
 21         <div id="chart"></div>
 22     </body>
 23 </html>
-
 ```
 
 Listing 7 shows the `index.html`. On line 05 we load the plotly JavaScript library and  on line 06 we load our JavaScript code. On line 19 we define the input control for the symbol (stock) an on line 21 we have the `div` that plotly will draw the chart on.
@@ -267,8 +267,7 @@ Listing 10 shows the data handler. On line 103 we extract the symbol from the HT
 156 }
 ```
 
-Listing 11 shows how we covert a `Table` to JSON used by our JavaScript code. On lines 125-139 we define an anonymous struct that will be marshalled to JSON. On lines 142 to 153 we fill this struct, telling plotly how we want the data to be displayed. Line 145 and 146 fill the `x` and `y` for the price, line 147 sets the title and on line 148 we specify we want a scatter (line) chart. On line 149 and 150 we set the `x` and `y` for the volume. On line 151 we wet the title and on line 152 we specify we want a bar chart. On line 153 we tell poltly we want a separate y axis for the volume. Finally on line 155 we use a `json.ENcoder` to encode this struct.
-
+Listing 11 shows how we convert a `Table` to JSON used by our JavaScript code. On lines 125-139 we define an anonymous struct that will be marshalled to JSON. On lines 142 to 153 we fill this struct, telling plotly how we want the data to be displayed. Line 145 and 146 fill the `x` and `y` for the price, line 147 sets the title and on line 148 we specify we want a scatter (line) chart. On line 149 and 150 we set the `x` and `y` for the volume. On line 151 we wet the title and on line 152 we specify we want a bar chart. On line 153 we tell poltly we want a separate y axis for the volume. Finally on line 155 we use a `json.ENcoder` to encode this struct.
 
 **Listing 12: Embedding Files**
 
@@ -294,18 +293,18 @@ Listing 12 shows how we embed the non-Go files in our server using the `embed` p
 165 }
 ```
 
-Listing 13 shows the `main` function. On line 159 we use an `http.FileServer` to server the embedded files and on line 160 we rouse `/data` to the `dataHandler`. Finally on line 162 we run the server on port 8080.
+Listing 13 shows the `main` function. On line 159 we use an `http.FileServer` to server the embedded files and on line 160 we route `/data` to the `dataHandler`. Finally on line 162 we run the server on port 8080.
 
 The final result look like the below image:
 
 ![](msft-chart.jpg)
 
+
 ## Conclusion
 
-With about 170 lines of code we manage to create an interactive application that displays stock information. `plotly` is a very mature library with a lot of features, invest some time going over [the documentation](https://plotly.com/javascript/). I usually start with a chart the looks similar to what I want to display and adjust to my needs.
+With about 170 lines of code we manage to create an interactive application that displays stock information. `plotly` is a very mature library with a lot of features [the documentation](https://plotly.com/javascript/) is great. I usually start with a chart that looks similar to what I want to display and adjust to my needs.
 
-If your code is in a database, you might need [zero code](https://github.com/kelseyhightower/nocode) to display it. Product such as [grafana](https://grafana.com/), [Google Data Studio](https://datastudio.google.com) and others allow you to create cool dashboards with very little effort.
+If your code is in a database, you might need [zero code](https://github.com/kelseyhightower/nocode) to display it. Products such as [grafana](https://grafana.com/), [Google Data Studio](https://datastudio.google.com) and others allow you to create cool dashboards with very little effort.
 
-What are cool visualizations you did create with Go? [Let me know](mailto:miki@353solutions.com)
+What cool visualizations did you create with Go? [Let me know](mailto:miki@353solutions.com)
 
-What cool visualization do you do with Go?
