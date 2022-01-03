@@ -233,41 +233,36 @@ Listing 10 shows the data handler. On line 103 we extract the symbol from the HT
 ```
 123 // tableJSON writes table data as JSON into w
 124 func tableJSON(symbol string, table Table, w io.Writer) error {
-125     var reply struct {
-126         Data [2]struct {
-127             X     interface{} `json:"x"`
-128             Y     interface{} `json:"y"`
-129             YAxis string      `json:"yaxis,omitempty"`
-130             Name  string      `json:"name"`
-131             Type  string      `json:"type"`
-132         } `json:"data"`
-133         Layout struct {
-134             Title string `json:"title"`
-135             Grid  struct {
-136                 Rows    int `json:"rows"`
-137                 Columns int `json:"columns"`
-138             } `json:"grid"`
-139         } `json:"layout"`
-140     }
-141 
-142     reply.Layout.Title = symbol
-143     reply.Layout.Grid.Rows = 2
-144     reply.Layout.Grid.Columns = 1
-145     reply.Data[0].X = table.Date
-146     reply.Data[0].Y = table.Price
-147     reply.Data[0].Name = "Price"
-148     reply.Data[0].Type = "scatter"
-149     reply.Data[1].X = table.Date
-150     reply.Data[1].Y = table.Volume
-151     reply.Data[1].Name = "Volume"
-152     reply.Data[1].Type = "bar"
-153     reply.Data[1].YAxis = "y2"
-154 
-155     return json.NewEncoder(w).Encode(reply)
-156 }
+125     reply := map[string]interface{}{
+126         "data": []map[string]interface{}{
+127             {
+128                 "x":    table.Date,
+129                 "y":    table.Price,
+130                 "name": "Price",
+131                 "type": "scatter",
+132             },
+133             {
+134                 "x":     table.Date,
+135                 "y":     table.Volume,
+136                 "name":  "Volume",
+137                 "type":  "bar",
+138                 "yaxis": "y2",
+139             },
+140         },
+141         "layout": map[string]interface{}{
+142             "title": symbol,
+143             "grid": map[string]int{
+144                 "rows":    2,
+145                 "columns": 1,
+146             },
+147         },
+148     }
+149 
+150     return json.NewEncoder(w).Encode(reply)
+151 }
 ```
 
-Listing 11 shows how we convert a `Table` to JSON used by our JavaScript code. On lines 125-139 we define an anonymous struct that will be marshalled to JSON. On lines 142 to 153 we fill this struct, telling plotly how we want the data to be displayed. Line 145 and 146 fill the `x` and `y` for the price, line 147 sets the title and on line 148 we specify we want a scatter (line) chart. On line 149 and 150 we set the `x` and `y` for the volume. On line 151 we wet the title and on line 152 we specify we want a bar chart. On line 153 we tell poltly we want a separate y axis for the volume. Finally on line 155 we use a `json.ENcoder` to encode this struct.
+Listing 11 shows how we convert a `Table` to JSON used by our JavaScript code. On lines 125-139 we define a map that will be marshalled to JSON. On lines 126 to 140 we define two traces that contain the plotting data. On  line 131 we specify that the first trace is a scatter (line) plot and on line 137 we specify the second trace is a bar plot. On line 138 we tell plotly that the var plot of the volume should have its own y axis. One lines 141-147 we define the layout of the plot, we want two rows and a single column. Finally on line 150 we use a `json.ENcoder` to encode this struct.
 
 **Listing 12: Embedding Files**
 
@@ -283,17 +278,17 @@ Listing 12 shows how we embed the non-Go files in our server using the `embed` p
 **Listing 13: Running The Server**
 
 ```
-158 func main() {
-159     http.Handle("/", http.FileServer(http.FS(staticFS)))
-160     http.HandleFunc("/data", dataHandler)
-161 
-162     if err := http.ListenAndServe(":8080", nil); err != nil {
-163         log.Fatal(err)
-164     }
-165 }
+153 func main() {
+154     http.Handle("/", http.FileServer(http.FS(staticFS)))
+155     http.HandleFunc("/data", dataHandler)
+156 
+157     if err := http.ListenAndServe(":8080", nil); err != nil {
+158         log.Fatal(err)
+159     }
+160 }
 ```
 
-Listing 13 shows the `main` function. On line 159 we use an `http.FileServer` to server the embedded files and on line 160 we route `/data` to the `dataHandler`. Finally on line 162 we run the server on port 8080.
+Listing 13 shows the `main` function. On line 154 we use an `http.FileServer` to server the embedded files and on line 155 we route `/data` to the `dataHandler`. Finally on line 157 we run the server on port 8080.
 
 The final result look like the below image:
 
@@ -302,7 +297,7 @@ The final result look like the below image:
 
 ## Conclusion
 
-With about 170 lines of code we manage to create an interactive application that displays stock information. `plotly` is a very mature library with a lot of features [the documentation](https://plotly.com/javascript/) is great. I usually start with a chart that looks similar to what I want to display and adjust to my needs.
+In about 160 lines of code we managed to create an interactive application that displays stock information. `plotly` is a very mature library with a lot of features [the documentation](https://plotly.com/javascript/) is great. I usually start with a chart that looks similar to what I want to display and adjust to my needs.
 
 If your code is in a database, you might need [zero code](https://github.com/kelseyhightower/nocode) to display it. Products such as [grafana](https://grafana.com/), [Google Data Studio](https://datastudio.google.com) and others allow you to create cool dashboards with very little effort.
 
