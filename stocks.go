@@ -122,35 +122,30 @@ func dataHandler(w http.ResponseWriter, r *http.Request) {
 
 // tableJSON writes table data as JSON into w
 func tableJSON(symbol string, table Table, w io.Writer) error {
-	var reply struct {
-		Data [2]struct {
-			X     interface{} `json:"x"`
-			Y     interface{} `json:"y"`
-			YAxis string      `json:"yaxis,omitempty"`
-			Name  string      `json:"name"`
-			Type  string      `json:"type"`
-		} `json:"data"`
-		Layout struct {
-			Title string `json:"title"`
-			Grid  struct {
-				Rows    int `json:"rows"`
-				Columns int `json:"columns"`
-			} `json:"grid"`
-		} `json:"layout"`
+	reply := map[string]interface{}{
+		"data": []map[string]interface{}{
+			{
+				"x":    table.Date,
+				"y":    table.Price,
+				"name": "Price",
+				"type": "scatter",
+			},
+			{
+				"x":     table.Date,
+				"y":     table.Volume,
+				"name":  "Volume",
+				"type":  "bar",
+				"yaxis": "y2",
+			},
+		},
+		"layout": map[string]interface{}{
+			"title": symbol,
+			"grid": map[string]int{
+				"rows":    2,
+				"columns": 1,
+			},
+		},
 	}
-
-	reply.Layout.Title = symbol
-	reply.Layout.Grid.Rows = 2
-	reply.Layout.Grid.Columns = 1
-	reply.Data[0].X = table.Date
-	reply.Data[0].Y = table.Price
-	reply.Data[0].Name = "Price"
-	reply.Data[0].Type = "scatter"
-	reply.Data[1].X = table.Date
-	reply.Data[1].Y = table.Volume
-	reply.Data[1].Name = "Volume"
-	reply.Data[1].Type = "bar"
-	reply.Data[1].YAxis = "y2"
 
 	return json.NewEncoder(w).Encode(reply)
 }
