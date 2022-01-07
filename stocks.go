@@ -16,7 +16,7 @@ import (
 )
 
 var (
-	//go:embed chart.js index.html plotly-2.8.3.min.js
+	//go:embed chart.js index.html
 	staticFS embed.FS
 )
 
