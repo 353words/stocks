@@ -9,14 +9,11 @@ url = "FIXME"
 author = "mikit"
 +++
 
-You'd like to visualize some stock data. Looking at the Go ecosystem, you see very little in charting, [gonum](https://github.com/gonum/plot) has some plotting capabilities, but it generates static charts. It's 2022 and you'd like interactive features such as zooming, panning and more. Looking at the HTML landscape, you see many more options and decide to take this path. After a short survey, you decide to use [plotly](https://plotly.com/javascript/).
+You'd like to visualize some stock data using Go,  but after looking at the Go ecosystem you see very little in charting. You find [gonum](https://github.com/gonum/plot), which has some plotting capabilities, but it generates static charts. It's 2022, and you'd like to have interactive features such as zooming, panning, and more. You turn to the HTML landscape, and see many more options and decide to take this path. After a short survey, you decide to use [plotly](https://plotly.com/javascript/).
 
-To get stock information, you'll use [Yahoo! finance](https://plotly.com/javascript/) that lets you download CSV with historical information.
-
-
+To get actual stock information, you'll use [Yahoo! finance](https://plotly.com/javascript/) that lets you download a CSV file with historical information.
 
 **Listing 1: Example CSV**
-
 ```
 Date,Open,High,Low,Close,Adj Close,Volume
 2021-01-04,222.529999,223.000000,214.809998,217.690002,215.880432,37130100
@@ -27,13 +24,11 @@ Date,Open,High,Low,Close,Adj Close,Volume
 2021-01-11,218.470001,218.910004,216.729996,217.490005,215.682083,23031300
 ```
 
-Listing one shows an example CSV download from Yahoo! finance. You're going to use only the `Date`, `Close` and `Volume` columns.
-
+Listing one shows an example of a CSV file that was downloaded from Yahoo! finance. You're going to use only the `Date`, `Close` and `Volume` columns.
 
 Let's start! First we'll parse the data
 
 **Listing 2: Parsing Time**
-
 ```
 37 // unmarshalTime unmarshal data in CSV to time
 38 func unmarshalTime(data []byte, t *time.Time) error {
@@ -43,10 +38,9 @@ Let's start! First we'll parse the data
 42 }
 ```
 
-Listing 2 shows parsing of time. In CSV everything is text, and we need to help `csvutil` to know how to parse time. On line 40 we use `time.Parse` to parse time from a string in the format `2021-01-11`.
+Listing 2 shows parsing of time. In CSV everything is text, and we need to help `csvutil` to know how to parse time. On line 40, we use `time.Parse` to parse time from a string in the format `2021-01-11`.
 
 **Listing 3: Date Types**
-
 ```
 23 // Row in CSV
 24 type Row struct {
@@ -63,10 +57,11 @@ Listing 2 shows parsing of time. In CSV everything is text, and we need to help 
 35 }
 ```
 
-Listing 3 shows the data types used in parsing. On line 24 we define `Row` which corresponds to a row in the CSV, we define only 3 fields for the columns we're interested in. `Close` is used to represent the stock price in that day. On line 31 we define the output type - `Table`. We have three columns of data: `Data`, `Price` (from the `Close` column in the CSV) and `Volume`.
+Listing 3 shows the data types used in parsing. On line 24, we define `Row` which corresponds to a row in the CSV file, we define only 3 fields for the columns we're interested in. `Close` is used to represent the final stock price for that day.
+
+On line 31, we define the output type - `Table`. We have three columns of data: `Data`, `Price` (from the `Close` column in the CSV), and `Volume`.
 
 **Listing 4: Parsing Data**
-
 ```
 44 // parseData parses data from r and returns a table with columns filled
 45 func parseData(r io.Reader) (Table, error) {
@@ -98,14 +93,13 @@ Listing 3 shows the data types used in parsing. On line 24 we define `Row` which
 71 }
 ```
 
-Listing 4 shows how to parse the data. On line 46 we create a new `csvutil.Decoder` and on line 50 we register `unmarshal` to handle `time.Time` fields. On line 52 we define the output value `table`. On line 53 we start iterating over the input, on line 54 we define `row` and on line 55 we decode the current line in the CSV into it. On line 57 we check for the end of input and on line 61 we check for other errors. On lines 65-67 we append the values from the current row to the respective columns. Finally on line 70 we return the parsed input.
+Listing 4 shows how to parse the data. On line 46, we create a new `csvutil.Decoder` and on line 50, we register the `unmarshalTime` function to handle `time.Time` fields. On line 52, we construct the output value `table`. On line 53, we start iterating over the input, on line 54, we construct a new `Row` and on line 55, we decode the current line in the CSV into the Row. On line 57, we check for the end of input and on line 61, we check for other errors. On lines 65-67, we append the values from the current row to the respective columns. Finally on line 70, we return the parsed input.
 
 _Note: To test this code, I've downloaded a CSV file one and used `parseData` on the opened file. This make the development cycle faster and also reduces the chances you'll be banned from hitting the API too frequently._
 
 Once we have parsed the data, we can get it from Yahoo! finance.
 
-**Listing 5: Building the URL**
-
+**Listing 5a: Building the URL**
 ```
 73 // buildURL builds URL for downloading CSV from Yahoo! finance
 74 func buildURL(symbol string, start, end time.Time) string {
@@ -121,15 +115,15 @@ Once we have parsed the data, we can get it from Yahoo! finance.
 84 }
 ```
 
-Listing 5 shows how to build the URL to fetch the CSV. The final URL looks like:
+Listing 5a shows how to build the URL to fetch the CSV. The final URL looks like:
 
+**Listing 5b: URL**
 ```
 https://query1.finance.yahoo.com/v7/finance/download/MSFT?period1=1609286400&period2=1640822400&interval=1d&events=history
 ```
-On line 75 we use `fmt.Sprintf` and `url.PathEscape` to create the first part of the URL (up to `?`). On lines 76 to 80 we create the query part of the URL using a `url.Values`. Finally on line 83 we return the full URL. 
+On line 75, we use `fmt.Sprintf` and `url.PathEscape` to create the first part of the URL (up to `?`). On lines 76 to 80, we create the query part of the URL using a `url.Values`. Finally on line 83, we return the full URL. 
 
 **Listing 6: Getting the Data**
-
 ```
 86 // stockData returns stock data from Yahoo! finance
 87 func stockData(symbol string, start, end time.Time) (Table, error) {
@@ -147,18 +141,17 @@ On line 75 we use `fmt.Sprintf` and `url.PathEscape` to create the first part of
 99 }
 ```
 
-Listing 6 shows how we get the data. On line 88 we build the URL and on line 89 we make an HTTP `GET` request. On lines 90 and 93 we check for errors and finally on line 98 we return the result of `parseData` on the response body.
+Listing 6 shows how we get the data. On line 88, we build the URL and on line 89, we make an HTTP `GET` request. On lines 90 and 93, we check for errors and finally on line 98, we return the result of `parseData` on the response body.
 
 Now that we get and parse our data, we can build our web server.
 
 **Listing 7: index.html**
-
 ```
 01 <!DOCTYPE html>
 02 <html>
 03     <head>
 04         <title>Stocks</title>
-05         <script src="/plotly-2.8.3.min.js"></script>
+05         <script src="https://cdn.plot.ly/plotly-2.8.3.min.js"></script>
 06         <script src="/chart.js"></script>
 07         <style>
 08                 #symbol {
@@ -179,10 +172,9 @@ Now that we get and parse our data, we can build our web server.
 23 </html>
 ```
 
-Listing 7 shows the `index.html`. On line 05 we load the plotly JavaScript library and  on line 06 we load our JavaScript code. On line 19 we define the input control for the symbol (stock) an on line 21 we have the `div` that plotly will draw the chart on.
+Listing 7 shows the `index.html`. On line 05, we load the plotly JavaScript library and on line 06, we load our JavaScript code. On line 19, we define the input control for the symbol (stock) and on line 21, we have the `div` that plotly will draw the chart on.
 
 **Listing 8: chart.js**
-
 ```
 01 async function updateChart() {
 02     let symbol = document.getElementById('symbol').value;
@@ -196,12 +188,11 @@ Listing 7 shows the `index.html`. On line 05 we load the plotly JavaScript libra
 10 });
 ```
 
-Listing 9 shows the JavaScript code. On line 01 we define a function to update the chart. On line 02 we get the symbol name from the HTML input. On line 03 we call our server to get the data and on line 04 we parse the JSON. Finally on line 05 we use plotly to generate a new chart.
+Listing 8 shows the JavaScript code. On line 01, we define a function to update the chart. On line 02, we get the symbol name from the HTML input. On line 03, we call our server to get the data and on line 04, we parse the JSON. Finally on line 05, we use plotly to generate a new chart.
 
-On lines 08-10 we hook the "Generate" button click to call `updateChart`.
+On lines 08-10, we hook the "Generate" button click to call `updateChart`.
 
-**Listing 10: Data Handler**
-
+**Listing 9: Data Handler**
 ```
 101 // dataHandler returns JSON data for symbol
 102 func dataHandler(w http.ResponseWriter, r *http.Request) {
@@ -226,10 +217,9 @@ On lines 08-10 we hook the "Generate" button click to call `updateChart`.
 121 }
 ```
 
-Listing 10 shows the data handler. On line 103 we extract the symbol from the HTTP `symbol` parameter. On line 111 we call `stockData` to get the stock data and finally on line 118 we convert the `Table` output to JSON.
+Listing 9 shows the data handler. On line 103, we extract the symbol from the HTTP `symbol` parameter. On line 111, we call `stockData` to get the stock data and finally on line 118, we convert the `Table` output to JSON.
 
-**Listing 11: Table as JSON**
-
+**Listing 10: Table as JSON**
 ```
 123 // tableJSON writes table data as JSON into w
 124 func tableJSON(symbol string, table Table, w io.Writer) error {
@@ -262,21 +252,19 @@ Listing 10 shows the data handler. On line 103 we extract the symbol from the HT
 151 }
 ```
 
-Listing 11 shows how we convert a `Table` to JSON used by our JavaScript code. On lines 125-139 we define a map that will be marshalled to JSON. On lines 126 to 140 we define two traces that contain the plotting data. On  line 131 we specify that the first trace is a scatter (line) plot and on line 137 we specify the second trace is a bar plot. On line 138 we tell plotly that the var plot of the volume should have its own y axis. One lines 141-147 we define the layout of the plot, we want two rows and a single column. Finally on line 150 we use a `json.ENcoder` to encode this struct.
+Listing 10 shows how we convert a `Table` to JSON used by our JavaScript code. On lines 125-139, we define a map that will be marshalled to JSON. On lines 126 to 140, we define two traces that contain the plotting data. On line 131, we specify that the first trace is a scatter (line) plot and on line 137, we specify the second trace is a bar plot. On line 138, we tell plotly that the var plot of the volume should have its own y axis. One lines 141-147, we define the layout of the plot, we want two rows and a single column. Finally on line 150, we use a `json.ENcoder` to encode this struct.
 
-**Listing 12: Embedding Files**
-
+**Listing 11: Embedding Files**
 ```
 18 var (
-19     //go:embed chart.js index.html plotly-2.8.3.min.js
+19     //go:embed chart.js index.html
 20     staticFS embed.FS
 21 )
 ```
 
-Listing 12 shows how we embed the non-Go files in our server using the `embed` package. On line 19 we use a `go:embed` directive to embed several files and on line 20 we define `staticFS` that implements `fs.FS` interface.
+Listing 11 shows how we embed the non-Go files in our server using the `embed` package. On line 19, we use a `go:embed` directive to embed several files and on line 20, we define `staticFS` that implements `fs.FS` interface.
 
-**Listing 13: Running The Server**
-
+**Listing 12: Running The Server**
 ```
 153 func main() {
 154     http.Handle("/", http.FileServer(http.FS(staticFS)))
@@ -288,7 +276,7 @@ Listing 12 shows how we embed the non-Go files in our server using the `embed` p
 160 }
 ```
 
-Listing 13 shows the `main` function. On line 154 we use an `http.FileServer` to server the embedded files and on line 155 we route `/data` to the `dataHandler`. Finally on line 157 we run the server on port 8080.
+Listing 12 shows the `main` function. On line 154, we use an `http.FileServer` to server the embedded files and on line 155, we route `/data` to the `dataHandler`. Finally on line 157, we run the server on port 8080.
 
 The final result look like the below image:
 
