@@ -285,7 +285,7 @@ The final result look like the below image:
 
 ## Conclusion
 
-In about 160 lines of code we managed to create an interactive application that displays stock information. `plotly` is a very mature library with a lot of features [the documentation](https://plotly.com/javascript/) is great. I usually start with a chart that looks similar to what I want to display and adjust to my needs.
+In about [160 lines of code](https://github.com/353words/stocks) we managed to create an interactive application that displays stock information. `plotly` is a very mature library with a lot of features [the documentation](https://plotly.com/javascript/) is great. I usually start with a chart that looks similar to what I want to display and adjust to my needs.
 
 If your code is in a database, you might need [zero code](https://github.com/kelseyhightower/nocode) to display it. Products such as [grafana](https://grafana.com/), [Google Data Studio](https://datastudio.google.com) and others allow you to create cool dashboards with very little effort.
 
